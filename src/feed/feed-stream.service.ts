@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Observable, Subscriber } from 'rxjs';
 import { shareReplay, tap } from 'rxjs/operators';
+import { setTimeout } from 'node:timers/promises';
 import { FeedApi } from './feed.api';
 import { CombinedFeedData, FeedMessageEvent, ImageItem } from './types';
 import { FeedRepository } from './feed.repository';
@@ -38,26 +39,80 @@ export class FeedStream {
     return newStream;
   }
 
+  private async _acquireLockWithRetries(
+    query: string,
+    subscriber: Subscriber<FeedMessageEvent>,
+  ): Promise<boolean> {
+    const MAX_RETRIES = 5;
+    const RETRY_DELAY_MS = 1000;
+    let lockAcquired = false;
+
+    // Initial attempt to acquire the lock
+    lockAcquired = await this.feedRepository.acquireLock(query);
+
+    // If lock is not acquired, enter the retry loop
+    if (!lockAcquired) {
+      for (let i = 0; i < MAX_RETRIES; i++) {
+        await setTimeout(RETRY_DELAY_MS);
+
+        const cachedData = await this.feedRepository.getFeed(query);
+        if (cachedData) {
+          subscriber.next({ type: 'left-ready', data: cachedData.left });
+          subscriber.next({ type: 'right-ready', data: cachedData.right });
+          subscriber.next({ type: 'complete', data: '' });
+          subscriber.complete();
+          return false; // Cached data served, no need to acquire lock
+        }
+
+        // Cache is empty, try to acquire lock again
+        lockAcquired = await this.feedRepository.acquireLock(query);
+        if (lockAcquired) {
+          // Lock acquired on a retry, break the loop and proceed to fetch data
+          break;
+        }
+      }
+    }
+
+    // After the initial try and potential retries, check if we have the lock
+    if (!lockAcquired) {
+      const errorMessage = 'Could not process request, please try again later.';
+      console.error(
+        `Could not acquire lock for query "${query}" after ${MAX_RETRIES} retries.`,
+      );
+      subscriber.next({
+        type: 'error',
+        data: {
+          source: 'left',
+          message: errorMessage,
+        },
+      });
+      subscriber.next({
+        type: 'error',
+        data: {
+          source: 'right',
+          message: errorMessage,
+        },
+      });
+      subscriber.complete();
+      return false; // Lock not acquired, and error sent
+    }
+
+    return true; // Lock successfully acquired
+  }
+
   private async _processStream(
     query: string,
     subscriber: Subscriber<FeedMessageEvent>,
   ) {
     let lockAcquired = false;
+
     try {
-      lockAcquired = await this.feedRepository.acquireLock(query);
+      lockAcquired = await this._acquireLockWithRetries(query, subscriber);
       if (!lockAcquired) {
-        // ... same logic for when lock is not acquired ...
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        const cachedData = await this.feedRepository.getFeed(query);
-        if (cachedData) {
-          subscriber.next({ type: 'left-ready', data: cachedData.left });
-          subscriber.next({ type: 'right-ready', data: cachedData.right });
-        }
-        subscriber.next({ type: 'complete', data: '' });
-        subscriber.complete();
-        return;
+        return; // Lock not acquired or cached data served, _acquireLockWithRetries handled completion
       }
 
+      // --- If we are here, we have the lock ---
       const leftPromise = this.feedApi
         .search(query)
         .then((result) => {
@@ -120,4 +175,3 @@ export class FeedStream {
     }
   }
 }
-

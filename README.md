@@ -10,6 +10,7 @@ make setup-env API_TOKEN=<....>
 
 ```sh
 make up;
+# Open in browser http://localhost:8080/
 make down;
 make logs;
 ```

@@ -41,32 +41,12 @@ export class FeedController {
 
     if (!query) {
       // If query is empty, return a stream that closes immediately
-      return of({ type: 'complete', data: '' } as SseMessage);
+      return of(this.feedViewService.emptySseMessageStream());
     }
 
     return this.feedStreamService.stream(query).pipe(
       map((message: FeedMessageEvent): SseMessage => {
-        if (message.type === 'left-ready' || message.type === 'right-ready') {
-          return {
-            type: message.type,
-            data: this.feedViewService.renderColumnHtml(message.data),
-          };
-        }
-
-        if (message.type === 'error') {
-          const errorHtml = this.feedViewService.renderError(
-            message.data.message,
-          );
-          // Reuse the success event type for the corresponding column to deliver the error message
-          const eventType =
-            message.data.source === 'left' ? 'left-ready' : 'right-ready';
-          return {
-            type: eventType,
-            data: errorHtml,
-          };
-        }
-
-        return message; // Pass through 'complete' events
+        return this.feedViewService.mapFeedMessageToSseMessage(message);
       }),
     );
   }

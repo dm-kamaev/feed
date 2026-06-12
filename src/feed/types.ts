@@ -43,17 +43,12 @@ export interface RightReadyMessage extends BaseFeedEvent {
 
 export interface ErrorMessage extends BaseFeedEvent {
   type: 'error';
-  data: { source: string; message: string };
+  data: { source: 'left' | 'right'; message: string };
 }
 
 export interface CompleteMessage extends BaseFeedEvent {
   type: 'complete';
   data: string; // The complete event has empty data
-}
-
-export interface RateLimitMessage extends BaseFeedEvent {
-  type: 'rate-limit';
-  data: string;
 }
 
 // The discriminated union of all possible feed events

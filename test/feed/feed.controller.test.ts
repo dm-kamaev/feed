@@ -14,6 +14,11 @@ import { CombinedFeedData } from '../../src/feed/types';
 import { FeedRepositoryFake } from '../fake/feed/feed.repository';
 import { FeedApiFake } from '../fake/feed/feed.api';
 
+// Mock node:timers/promises to speed up tests that use setTimeout
+jest.mock('node:timers/promises', () => ({
+  setTimeout: jest.fn(() => Promise.resolve()),
+}));
+
 describe('feed.controller', () => {
   let app: NestFastifyApplication;
 
@@ -113,7 +118,7 @@ describe('feed.controller', () => {
       left: FeedApiFake.defaultFeed['dog'].items,
       right: FeedApiFake.defaultFeed['dog graffiti'].items,
     });
-  }, 30000); // Increased timeout for SSE test
+  });
 
   it('GET feed/search with empty query should return an empty feed', async () => {
     const feedView = app.get(FeedView);
@@ -152,6 +157,10 @@ describe('feed.controller', () => {
 
   it('should handle rate limit errors gracefully in a column', async () => {
     const query = 'rate-limit-test';
+    const feedView = app.get(FeedView);
+    const expectedRateLimitErrorHtml = feedView.renderError(
+      'Service is busy, please try again in a moment.',
+    );
 
     // The initial search will return a placeholder
     await request(app.getHttpServer())
@@ -166,11 +175,50 @@ describe('feed.controller', () => {
 
     // Check that the error message is delivered using the 'left-ready' event
     expect(sseResponse.text).toContain('event: left-ready');
-    expect(sseResponse.text).toContain(
-      'data: <p class="has-text-danger has-text-centered">Service is busy, please try again in a moment.</p>',
-    );
+    expect(sseResponse.text).toContain(`data: ${expectedRateLimitErrorHtml}`);
     // Also check that the right column still loads successfully
     expect(sseResponse.text).toContain('event: right-ready');
+  });
+
+  it('should handle acquireLock failure gracefully with error messages and no releaseLock', async () => {
+    const query = 'lock-fail-test';
+    const errorMessage = 'Could not process request, please try again later.';
+
+    const feedRepository = app.get<FeedRepository, FeedRepositoryFake>(
+      FeedRepository,
+    );
+    const acquireLockSpy = jest
+      .spyOn(feedRepository, 'acquireLock')
+      .mockResolvedValue(false); // Simulate lock acquisition failure
+
+    const releaseLockSpy = jest.spyOn(feedRepository, 'releaseLock'); // Spy on releaseLock
+
+    const feedView = app.get(FeedView);
+    const expectedErrorHtml = feedView.renderError(errorMessage);
+
+    // Initial search to trigger the stream creation and placeholder
+    await request(app.getHttpServer())
+      .get(`/feed/search?query=${query}`)
+      .expect(200);
+
+    // Connect to the SSE stream to trigger _processStream
+    const sseResponse = await request(app.getHttpServer())
+      .get(`/feed/in_progress?query=${query}`)
+      .expect(200);
+
+    // Expect multiple calls to acquireLock due to retries
+    expect(acquireLockSpy).toHaveBeenCalledTimes(6); // 1 initial + 5 retries
+
+    expect(sseResponse.text).toContain('event: left-ready');
+    expect(sseResponse.text).toContain(`data: ${expectedErrorHtml}`);
+    expect(sseResponse.text).toContain('event: right-ready');
+    expect(sseResponse.text).toContain(`data: ${expectedErrorHtml}`);
+
+    // Assert that releaseLock was NOT called, as the lock was never acquired
+    expect(releaseLockSpy).not.toHaveBeenCalled();
+
+    acquireLockSpy.mockRestore(); // Clean up the mock
+    releaseLockSpy.mockRestore(); // Clean up the spy
   });
 
   afterAll(async () => {

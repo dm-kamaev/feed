@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { ImageItem, CombinedFeedData } from './types';
+import {
+  ImageItem,
+  CombinedFeedData,
+  FeedMessageEvent,
+  SseMessage,
+} from './types';
+import { Observable, of } from 'rxjs'; // Add Observable and of imports
 
 @Injectable()
 export class FeedView {
@@ -22,14 +28,23 @@ export class FeedView {
     }
     return items
       .map(
-        (item) =>
-          `<div class="card mb-4"><div class="card-image"><figure class="image is-4by3"><img src="${
-            item.url
-          }" alt="Image with tags: ${item.tags.join(
-            ', ',
-          )}"></figure></div><div class="card-content"><div class="tags">${item.tags
-            .map((tag: string) => `<span class="tag">${tag}</span>`)
-            .join(' ')}</div></div></div>`,
+        (item) => `
+          <div class="card mb-4">
+            <div class="card-image">
+              <figure class="image is-4by3">
+                <img src="${item.url}" alt="Image with tags: ${item.tags.join(
+                  ', ',
+                )}">
+              </figure>
+            </div>
+            <div class="card-content">
+              <div class="tags">
+                ${item.tags
+                  .map((tag: string) => `<span class="tag">${tag}</span>`)
+                  .join(' ')}
+              </div>
+            </div>
+          </div>`,
       )
       .join('');
   }
@@ -37,6 +52,32 @@ export class FeedView {
   renderError(message: string): string {
     const sanitizedMessage = this.escapeHtml(message);
     return `<p class="has-text-danger has-text-centered">${sanitizedMessage}</p>`;
+  }
+
+  mapFeedMessageToSseMessage(message: FeedMessageEvent): SseMessage {
+    if (message.type === 'left-ready' || message.type === 'right-ready') {
+      return {
+        type: message.type,
+        data: this.renderColumnHtml(message.data),
+      };
+    }
+
+    if (message.type === 'error') {
+      const errorHtml = this.renderError(message.data.message);
+      // Reuse the success event type for the corresponding column to deliver the error message
+      const eventType =
+        message.data.source === 'left' ? 'left-ready' : 'right-ready';
+      return {
+        type: eventType,
+        data: errorHtml,
+      };
+    }
+
+    return message; // Pass through 'complete' events
+  }
+
+  emptySseMessageStream(): SseMessage {
+    return { type: 'complete', data: '' };
   }
 
   private escapeHtml(unsafe: string): string {
