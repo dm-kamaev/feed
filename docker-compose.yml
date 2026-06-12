@@ -10,15 +10,32 @@ services:
       - "3000:3000"
     depends_on:
       - redis
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
 
   redis:
-    image: "redis:alpine"
+    image: 'redis:alpine'
 
   nginx:
     build:
       context: .
       dockerfile: ./nginx/Dockerfile
     ports:
-      - "8080:80"
+      - '8080:80'
     depends_on:
       - backend
+
+  backend_test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    depends_on:
+      - redis
+    environment:
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    # command: ['npm', 'run', 'test:e2e:docker']

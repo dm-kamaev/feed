@@ -5,7 +5,6 @@ import {
   FeedMessageEvent,
   SseMessage,
 } from './types';
-import { Observable, of } from 'rxjs'; // Add Observable and of imports
 
 @Injectable()
 export class FeedView {

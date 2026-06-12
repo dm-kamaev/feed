@@ -14,10 +14,11 @@ import { CombinedFeedData } from '../../src/feed/types';
 import { FeedRepositoryFake } from '../fake/feed/feed.repository';
 import { FeedApiFake } from '../fake/feed/feed.api';
 
-// Mock node:timers/promises to speed up tests that use setTimeout
 jest.mock('node:timers/promises', () => ({
   setTimeout: jest.fn(() => Promise.resolve()),
 }));
+
+let consoleErrorSpy: jest.SpyInstance;
 
 describe('feed.controller', () => {
   let app: NestFastifyApplication;
@@ -47,6 +48,8 @@ describe('feed.controller', () => {
     );
     await app.init();
     await app.getHttpAdapter().getInstance().ready(); // Fastify specific readiness
+
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   beforeEach(async () => {
@@ -223,6 +226,7 @@ describe('feed.controller', () => {
 
   afterAll(async () => {
     if (app) {
+      consoleErrorSpy.mockRestore(); // Restore original console.error
       await app.close();
     }
   });
