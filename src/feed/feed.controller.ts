@@ -53,7 +53,20 @@ export class FeedController {
           };
         }
 
-        return message;
+        if (message.type === 'error') {
+          const errorHtml = this.feedViewService.renderError(
+            message.data.message,
+          );
+          // Reuse the success event type for the corresponding column to deliver the error message
+          const eventType =
+            message.data.source === 'left' ? 'left-ready' : 'right-ready';
+          return {
+            type: eventType,
+            data: errorHtml,
+          };
+        }
+
+        return message; // Pass through 'complete' events
       }),
     );
   }

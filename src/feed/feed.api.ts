@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-import { AxiosResponse } from 'axios';
+import { AxiosError, AxiosResponse } from 'axios';
 import { SearchResponse } from './types';
 import { ConfigService } from '@nestjs/config';
+import { RateLimitException } from './exceptions/rate-limit.exception';
 
 @Injectable()
 export class FeedApi {
@@ -17,10 +18,24 @@ export class FeedApi {
     this.API_BASE_URL = this.configService.get<string>('API_BASE_URL')!;
   }
 
-  search(query: string): Promise<AxiosResponse<SearchResponse>> {
-    return this.httpService.axiosRef.get(`${this.API_BASE_URL}/search`, {
-      params: { q: query },
-      headers: { 'X-API-Token': this.API_TOKEN },
-    });
+  async search(query: string): Promise<AxiosResponse<SearchResponse>> {
+    try {
+      const response = await this.httpService.axiosRef.get(
+        `${this.API_BASE_URL}/search`,
+        {
+          params: { q: query },
+          headers: { 'X-API-Token': this.API_TOKEN },
+        },
+      );
+      return response;
+    } catch (error) {
+      if (
+        (error as AxiosError).isAxiosError &&
+        (error as AxiosError).response?.status === 429
+      ) {
+        throw new RateLimitException();
+      }
+      throw error;
+    }
   }
 }

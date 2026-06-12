@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { Observable } from 'rxjs';
+import { Observable, Subscriber } from 'rxjs';
 import { shareReplay, tap } from 'rxjs/operators';
 import { FeedApi } from './feed.api';
-import { CombinedFeedData, ImageItem, FeedMessageEvent } from './types';
+import { CombinedFeedData, FeedMessageEvent, ImageItem } from './types';
 import { FeedRepository } from './feed.repository';
+import { RateLimitException } from './exceptions/rate-limit.exception';
 
 @Injectable()
 export class FeedStream {
@@ -39,16 +40,13 @@ export class FeedStream {
 
   private async _processStream(
     query: string,
-    subscriber: {
-      next(value: FeedMessageEvent): void;
-      error(err?: any): void;
-      complete(): void;
-    },
+    subscriber: Subscriber<FeedMessageEvent>,
   ) {
     let lockAcquired = false;
     try {
       lockAcquired = await this.feedRepository.acquireLock(query);
       if (!lockAcquired) {
+        // ... same logic for when lock is not acquired ...
         await new Promise((resolve) => setTimeout(resolve, 1000));
         const cachedData = await this.feedRepository.getFeed(query);
         if (cachedData) {
@@ -67,12 +65,16 @@ export class FeedStream {
           subscriber.next({ type: 'left-ready', data: leftData });
           return leftData;
         })
-        .catch((throwable: unknown) => {
-          const error = throwable as Error;
+        .catch((error: unknown) => {
+          const message =
+            error instanceof RateLimitException
+              ? 'Service is busy, please try again in a moment.'
+              : (error as Error).message;
+
           console.error(`Error fetching left feed for "${query}":`, error);
           subscriber.next({
             type: 'error',
-            data: { source: 'left', message: error.message },
+            data: { source: 'left', message },
           });
           return [] as ImageItem[];
         });
@@ -84,15 +86,18 @@ export class FeedStream {
           subscriber.next({ type: 'right-ready', data: rightData });
           return rightData;
         })
-        .catch((throwable: unknown) => {
-          const error = throwable as Error;
+        .catch((error: unknown) => {
+          const message =
+            error instanceof RateLimitException
+              ? 'Service is busy, please try again in a moment.'
+              : (error as Error).message;
           console.error(
             `Error fetching right feed for "${query} graffiti":`,
             error,
           );
           subscriber.next({
             type: 'error',
-            data: { source: 'right', message: error.message },
+            data: { source: 'right', message },
           });
           return [] as ImageItem[];
         });
@@ -100,11 +105,9 @@ export class FeedStream {
       const [left, right] = await Promise.all([leftPromise, rightPromise]);
 
       const combinedData: CombinedFeedData = { left, right };
-
       if (left.length > 0 || right.length > 0) {
         await this.feedRepository.setFeed(query, combinedData);
       }
-
       subscriber.next({ type: 'complete', data: '' });
       subscriber.complete();
     } catch (error) {
@@ -117,3 +120,4 @@ export class FeedStream {
     }
   }
 }
+

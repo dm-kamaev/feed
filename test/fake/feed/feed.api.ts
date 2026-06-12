@@ -1,6 +1,7 @@
 import { FeedApi } from '../../../src/feed/feed.api';
 import { AxiosHeaders } from 'axios';
 import { SearchResponse } from '../../../src/feed/types';
+import { RateLimitException } from '../../../src/feed/exceptions/rate-limit.exception';
 
 export class FeedApiFake extends FeedApi {
   static defaultFeed: Record<string, SearchResponse> = {
@@ -26,7 +27,11 @@ export class FeedApiFake extends FeedApi {
     },
   };
 
-  override search(query: string) {
+  override async search(query: string) {
+    if (query === 'rate-limit-test') {
+      throw new RateLimitException();
+    }
+
     if (query === 'dog') {
       return Promise.resolve({
         data: FeedApiFake.defaultFeed['dog'],

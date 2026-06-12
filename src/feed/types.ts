@@ -51,6 +51,11 @@ export interface CompleteMessage extends BaseFeedEvent {
   data: string; // The complete event has empty data
 }
 
+export interface RateLimitMessage extends BaseFeedEvent {
+  type: 'rate-limit';
+  data: string;
+}
+
 // The discriminated union of all possible feed events
 export type FeedMessageEvent =
   | LeftReadyMessage

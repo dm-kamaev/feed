@@ -34,6 +34,20 @@ export class FeedView {
       .join('');
   }
 
+  renderError(message: string): string {
+    const sanitizedMessage = this.escapeHtml(message);
+    return `<p class="has-text-danger has-text-centered">${sanitizedMessage}</p>`;
+  }
+
+  private escapeHtml(unsafe: string): string {
+    return unsafe
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   renderPlaceholderTemplate(query: string): string {
     const encodedQuery = encodeURIComponent(query);
     return `

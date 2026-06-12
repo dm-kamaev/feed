@@ -150,6 +150,29 @@ describe('feed.controller', () => {
     );
   });
 
+  it('should handle rate limit errors gracefully in a column', async () => {
+    const query = 'rate-limit-test';
+
+    // The initial search will return a placeholder
+    await request(app.getHttpServer())
+      .get(`/feed/search?query=${query}`)
+      .expect(200);
+
+    // Now we connect to the SSE stream and expect the rate-limit error
+    // to be delivered via a 'left-ready' event.
+    const sseResponse = await request(app.getHttpServer())
+      .get(`/feed/in_progress?query=${query}`)
+      .expect(200);
+
+    // Check that the error message is delivered using the 'left-ready' event
+    expect(sseResponse.text).toContain('event: left-ready');
+    expect(sseResponse.text).toContain(
+      'data: <p class="has-text-danger has-text-centered">Service is busy, please try again in a moment.</p>',
+    );
+    // Also check that the right column still loads successfully
+    expect(sseResponse.text).toContain('event: right-ready');
+  });
+
   afterAll(async () => {
     if (app) {
       await app.close();
