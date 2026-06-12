@@ -1,0 +1,6 @@
+dist
+.env
+node_modules
+problem_statement.md
+plan.md
+changes_in_plan.md

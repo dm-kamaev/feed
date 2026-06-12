@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Image Feed</title>
+    <link rel="stylesheet" href="/bulma.min.css" />
+    <script src="/htmx.min.js"></script>
+    <script src="/htmx-ext-sse.js"></script>
+  </head>
+  <body hx-ext="sse">
+    <section class="section">
+      <div class="container">
+        <h1 class="title">Image Feed</h1>
+        <p class="subtitle">Enter a search term to see a feed of images.</p>
+
+        <form
+          hx-get="/api/feed/search"
+          hx-target="#feed-display"
+          class="field has-addons"
+        >
+          <div class="control is-expanded">
+            <input
+              class="input"
+              type="text"
+              name="query"
+              placeholder="Search images (e.g., cat)..."
+              required
+            />
+          </div>
+          <div class="control">
+            <button class="button is-primary" type="submit">Search</button>
+          </div>
+        </form>
+
+        <div id="feed-display" class="mt-5">
+          <!-- The feed will be loaded here -->
+        </div>
+      </div>
+    </section>
+  </body>
+</html>
