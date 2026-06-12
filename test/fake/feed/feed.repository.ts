@@ -1,10 +1,6 @@
 import { FeedRepository } from '../../../src/feed/feed.repository';
 
 export class FeedRepositoryFake extends FeedRepository {
-  async removeAllFeed(query: string) {
-    await this.redis.del(`feed:${query}`);
-  }
-
   async truncate() {
     const [feedKeys, lockKeys] = await Promise.all([
       this.redis.keys(`feed:*`),

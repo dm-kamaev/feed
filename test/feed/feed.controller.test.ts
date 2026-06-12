@@ -14,7 +14,7 @@ import { CombinedFeedData } from '../../src/feed/types';
 import { FeedRepositoryFake } from '../fake/feed/feed.repository';
 import { FeedApiFake } from '../fake/feed/feed.api';
 
-describe('Feed (e2e)', () => {
+describe('feed.controller', () => {
   let app: NestFastifyApplication;
 
   beforeAll(async () => {
@@ -51,30 +51,34 @@ describe('Feed (e2e)', () => {
     await feedRepository.truncate();
   });
 
-  it(`/GET feed/search (Cache Hit)`, async () => {
+  it(`GET feed/search (Cache Hit)`, async () => {
     const query = 'cat';
-    const mockData: CombinedFeedData = {
-      left: [{ url: 'l1', width: 1, height: 1, tags: ['c'] }],
-      right: [{ url: 'r1', width: 1, height: 1, tags: ['cg'] }],
+    const stubCache: CombinedFeedData = {
+      left: FeedApiFake.defaultFeed['dog'].items,
+      right: FeedApiFake.defaultFeed['dog graffiti'].items,
     };
 
     const feedRepository = app.get<FeedRepository, FeedRepositoryFake>(
       FeedRepository,
     );
-    await feedRepository.setFeed(query, mockData);
+    await feedRepository.setFeed(query, stubCache);
 
     const feedView = app.get(FeedView);
     const feedViewSpy = jest.spyOn(feedView, 'renderFullFeedTemplate');
+
+    const feedApi = app.get(FeedApi);
+    const feedApiSpy = jest.spyOn(feedApi, 'search');
 
     await request(app.getHttpServer())
       .get('/feed/search?query=' + query)
       .expect(200);
 
-    expect(feedViewSpy).toHaveBeenCalledWith(mockData);
+    expect(feedViewSpy).toHaveBeenCalledWith(stubCache);
+    expect(feedApiSpy).not.toHaveBeenCalled();
   });
 
   // Add a test for Cache Miss scenario
-  it(`/GET feed/search (Cache Miss) and SSE Stream`, async () => {
+  it(`GET feed/search (Cache Miss) and SSE Stream`, async () => {
     const query = 'dog';
 
     const feedView = app.get(FeedView);
@@ -111,7 +115,7 @@ describe('Feed (e2e)', () => {
     });
   }, 30000); // Increased timeout for SSE test
 
-  it('/GET feed/search with empty query should return an empty feed', async () => {
+  it('GET feed/search with empty query should return an empty feed', async () => {
     const feedView = app.get(FeedView);
     const expectedHtml = feedView.renderFullFeedTemplate({
       left: [],
@@ -129,6 +133,21 @@ describe('Feed (e2e)', () => {
       .expect(200);
 
     expect(whitespaceResponse.text).toEqual(expectedHtml);
+  });
+
+  it('should correctly URL-encode special characters in the query', async () => {
+    const specialQuery = 'dogs & cats "friends"';
+    const encodedQuery = encodeURIComponent(specialQuery);
+
+    const response = await request(app.getHttpServer())
+      .get('/feed/search')
+      .query({ query: specialQuery })
+      .expect(200);
+
+    // Check that the placeholder's sse-connect attribute has the encoded query
+    expect(response.text).toContain(
+      `sse-connect="/api/feed/in_progress?query=${encodedQuery}"`,
+    );
   });
 
   afterAll(async () => {

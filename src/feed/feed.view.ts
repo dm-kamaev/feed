@@ -35,8 +35,9 @@ export class FeedView {
   }
 
   renderPlaceholderTemplate(query: string): string {
+    const encodedQuery = encodeURIComponent(query);
     return `
-      <div hx-ext="sse" sse-connect="/api/feed/in_progress?query=${query}" sse-close="complete" class="box">
+      <div hx-ext="sse" sse-connect="/api/feed/in_progress?query=${encodedQuery}" sse-close="complete" class="box">
         <div class="columns">
           <div sse-swap="left-ready" id="left-col" class="column is-6">
             <p class="has-text-centered">Loading original posts...</p>
