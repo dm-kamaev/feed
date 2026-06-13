@@ -72,7 +72,7 @@ describe('feed.controller', () => {
     await feedRepository.setFeed(query, stubCache);
 
     const feedView = app.get(FeedView);
-    const feedViewSpy = jest.spyOn(feedView, 'renderFullFeedTemplate');
+    const feedViewSpy = jest.spyOn(feedView, 'renderFullFeed');
 
     const feedApi = app.get(FeedApi);
     const feedApiSpy = jest.spyOn(feedApi, 'search');
@@ -90,8 +90,8 @@ describe('feed.controller', () => {
     const query = 'dog';
 
     const feedView = app.get(FeedView);
-    const placeholderSpy = jest.spyOn(feedView, 'renderPlaceholderTemplate');
-    const columnSpy = jest.spyOn(feedView, 'renderColumnHtml');
+    const placeholderSpy = jest.spyOn(feedView, 'renderPlaceholder');
+    const columnSpy = jest.spyOn(feedView, 'renderFeedColumn');
 
     // 1. Initial search - expect placeholder (cache miss)
     await request(app.getHttpServer())
@@ -125,7 +125,7 @@ describe('feed.controller', () => {
 
   it('GET feed/search with empty query should return an empty feed', async () => {
     const feedView = app.get(FeedView);
-    const expectedHtml = feedView.renderFullFeedTemplate({
+    const expectedHtml = feedView.renderFullFeed({
       left: [],
       right: [],
     });

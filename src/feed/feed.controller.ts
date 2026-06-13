@@ -1,6 +1,6 @@
 import { Controller, Get, Query, Res, Sse } from '@nestjs/common';
 import { FeedSearchService } from './feed-search.service';
-import { FeedStream } from './feed-stream.service';
+import { FeedStreamService } from './feed-stream.service';
 import { FeedView } from './feed.view';
 import type { Response } from 'express';
 import { Observable, of } from 'rxjs';
@@ -11,7 +11,7 @@ import { FeedMessageEvent, SseMessage } from './types';
 export class FeedController {
   constructor(
     private readonly feedSearchService: FeedSearchService,
-    private readonly feedStreamService: FeedStream,
+    private readonly feedStreamService: FeedStreamService,
     private readonly feedViewService: FeedView,
   ) {}
 
@@ -21,18 +21,18 @@ export class FeedController {
 
     if (!query) {
       return res.send(
-        this.feedViewService.renderFullFeedTemplate({ left: [], right: [] }),
+        this.feedViewService.renderFullFeed({ left: [], right: [] }),
       );
     }
 
-    const cachedData = await this.feedSearchService.search(query);
+    const cachedData = await this.feedSearchService.act(query);
 
     if (cachedData) {
-      return res.send(this.feedViewService.renderFullFeedTemplate(cachedData));
+      return res.send(this.feedViewService.renderFullFeed(cachedData));
     }
 
     // Cache Miss: Return a lazy-loading placeholder that activates htmx SSE extension
-    return res.send(this.feedViewService.renderPlaceholderTemplate(query));
+    return res.send(this.feedViewService.renderPlaceholder(query));
   }
 
   @Sse('in_progress')
@@ -41,10 +41,10 @@ export class FeedController {
 
     if (!query) {
       // If query is empty, return a stream that closes immediately
-      return of(this.feedViewService.emptySseMessageStream());
+      return of(this.feedViewService.emptySseMessage());
     }
 
-    return this.feedStreamService.stream(query).pipe(
+    return this.feedStreamService.act(query).pipe(
       map((message: FeedMessageEvent): SseMessage => {
         return this.feedViewService.mapFeedMessageToSseMessage(message);
       }),

@@ -15,7 +15,7 @@ logs:
 
 
 check_ts:
-	npx tsc --noEmit;
+	npx tsc --noEmit --incremental false;
 
 
 lint:
@@ -30,7 +30,15 @@ test.watch:
 	docker compose run backend_test npm run test:watch
 
 
-setup-env:
+test.coverage:
+	docker compose run backend_test npm run test:coverage
+
+
+install:
+	npm i
+
+
+setup-env: install
 	@if [ -z "$(API_TOKEN)" ]; then \
 		echo "API_TOKEN is not set. Please provide it by running: make setup-env API_TOKEN=your_token_here"; \
 		exit 1; \

@@ -7,7 +7,7 @@ import { ConfigModule } from '@nestjs/config';
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true, // Makes the ConfigService available globally
+      isGlobal: true,
     }),
     FeedModule,
     RedisModule.forRoot({

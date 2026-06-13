@@ -6,12 +6,7 @@ import { CombinedFeedData } from './types';
 export class FeedSearchService {
   constructor(private readonly feedRepository: FeedRepository) {}
 
-  async search(query: string): Promise<CombinedFeedData | null> {
-    const cachedData = await this.feedRepository.getFeed(query);
-    if (cachedData) {
-      return cachedData;
-    }
-
-    return null;
+  async act(query: string): Promise<CombinedFeedData | null> {
+    return await this.feedRepository.getFeed(query);
   }
 }

@@ -8,20 +8,20 @@ import {
 
 @Injectable()
 export class FeedView {
-  renderFullFeedTemplate(data: CombinedFeedData): string {
+  renderFullFeed(data: CombinedFeedData): string {
     return `
       <div class="columns">
         <div id="left-col" class="column is-6">
-          ${this.renderColumnHtml(data.left)}
+          ${this.renderFeedColumn(data.left)}
         </div>
         <div id="right-col" class="column is-6">
-          ${this.renderColumnHtml(data.right)}
+          ${this.renderFeedColumn(data.right)}
         </div>
       </div>
     `;
   }
 
-  renderColumnHtml(items: ImageItem[]): string {
+  renderFeedColumn(items: ImageItem[]): string {
     if (!items || items.length === 0) {
       return '<p>No images found.</p>';
     }
@@ -57,7 +57,7 @@ export class FeedView {
     if (message.type === 'left-ready' || message.type === 'right-ready') {
       return {
         type: message.type,
-        data: this.renderColumnHtml(message.data),
+        data: this.renderFeedColumn(message.data),
       };
     }
 
@@ -75,7 +75,7 @@ export class FeedView {
     return message; // Pass through 'complete' events
   }
 
-  emptySseMessageStream(): SseMessage {
+  emptySseMessage(): SseMessage {
     return { type: 'complete', data: '' };
   }
 
@@ -88,7 +88,7 @@ export class FeedView {
       .replace(/'/g, '&#039;');
   }
 
-  renderPlaceholderTemplate(query: string): string {
+  renderPlaceholder(query: string): string {
     const encodedQuery = encodeURIComponent(query);
     return `
       <div hx-ext="sse" sse-connect="/api/feed/in_progress?query=${encodedQuery}" sse-close="complete" class="box">

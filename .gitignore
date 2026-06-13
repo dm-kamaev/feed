@@ -1,7 +1,12 @@
+.qodo
+
 dist
 .env
 node_modules
+test/coverage
+coverage
+
 problem_statement.md
 plan.md
 changes_in_plan.md
-.qodo
+review_summary.md
