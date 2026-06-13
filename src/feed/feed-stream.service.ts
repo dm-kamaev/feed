@@ -103,9 +103,20 @@ export class FeedStreamService {
       }
       subscriber.next({ type: 'complete', data: '' });
       subscriber.complete();
-    } catch (error) {
+    } catch (error: unknown) {
+      const message =
+        error instanceof RateLimitException
+          ? 'Service is busy, please try again in a moment.'
+          : error instanceof Error
+            ? error.message
+            : 'An unknown error occurred in the SSE stream.';
+
       console.error('Error in SSE stream:', error);
-      subscriber.error(error);
+      subscriber.next({
+        type: 'error',
+        data: { source: 'global', message },
+      });
+      subscriber.complete();
     } finally {
       if (lockAcquired) {
         await this.feedRepository.releaseLock(query);

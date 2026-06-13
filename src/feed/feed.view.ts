@@ -53,7 +53,9 @@ export class FeedView {
     return `<p class="has-text-danger has-text-centered">${sanitizedMessage}</p>`;
   }
 
-  mapFeedMessageToSseMessage(message: FeedMessageEvent): SseMessage {
+  mapFeedMessageToSseMessage(
+    message: FeedMessageEvent,
+  ): SseMessage | SseMessage[] {
     if (message.type === 'left-ready' || message.type === 'right-ready') {
       return {
         type: message.type,
@@ -63,13 +65,17 @@ export class FeedView {
 
     if (message.type === 'error') {
       const errorHtml = this.renderError(message.data.message);
-      // Reuse the success event type for the corresponding column to deliver the error message
-      const eventType =
-        message.data.source === 'left' ? 'left-ready' : 'right-ready';
-      return {
-        type: eventType,
-        data: errorHtml,
-      };
+
+      if (message.data.source === 'left') {
+        return { type: 'left-ready', data: errorHtml };
+      } else if (message.data.source === 'right') {
+        return { type: 'right-ready', data: errorHtml };
+      } else if (message.data.source === 'global') {
+        return [
+          { type: 'left-ready', data: errorHtml },
+          { type: 'right-ready', data: errorHtml },
+        ];
+      }
     }
 
     return message; // Pass through 'complete' events

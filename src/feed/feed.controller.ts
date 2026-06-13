@@ -3,8 +3,8 @@ import { FeedSearchService } from './feed-search.service';
 import { FeedStreamService } from './feed-stream.service';
 import { FeedView } from './feed.view';
 import type { Response } from 'express';
-import { Observable, of } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { from, Observable, of } from 'rxjs';
+import { mergeMap } from 'rxjs/operators';
 import { FeedMessageEvent, SseMessage } from './types';
 
 @Controller('feed')
@@ -45,8 +45,9 @@ export class FeedController {
     }
 
     return this.feedStreamService.act(query).pipe(
-      map((message: FeedMessageEvent): SseMessage => {
-        return this.feedViewService.mapFeedMessageToSseMessage(message);
+      mergeMap((message: FeedMessageEvent) => {
+        const result = this.feedViewService.mapFeedMessageToSseMessage(message);
+        return Array.isArray(result) ? from(result) : of(result);
       }),
     );
   }

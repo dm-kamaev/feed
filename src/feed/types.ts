@@ -46,6 +46,11 @@ export interface ErrorMessage extends BaseFeedEvent {
   data: { source: 'left' | 'right'; message: string };
 }
 
+export interface GlobalErrorMessage extends BaseFeedEvent {
+  type: 'error';
+  data: { source: 'global'; message: string };
+}
+
 export interface CompleteMessage extends BaseFeedEvent {
   type: 'complete';
   data: string; // The complete event has empty data
@@ -56,4 +61,5 @@ export type FeedMessageEvent =
   | LeftReadyMessage
   | RightReadyMessage
   | ErrorMessage
+  | GlobalErrorMessage
   | CompleteMessage;

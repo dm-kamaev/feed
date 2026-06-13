@@ -23,7 +23,7 @@ lint:
 
 
 test:
-	docker compose run backend npm run test
+	docker compose run --remove-orphans backend npm run test
 
 
 test.watch:
