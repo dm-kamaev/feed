@@ -59,10 +59,7 @@ export class FeedStreamService {
           return leftData;
         })
         .catch((error: unknown) => {
-          const message =
-            error instanceof RateLimitException
-              ? 'Service is busy, please try again in a moment.'
-              : (error as Error).message;
+          const message = this._getErrorMessage(error);
 
           console.error(`Error fetching left feed for "${query}":`, error);
           subscriber.next({
@@ -80,10 +77,7 @@ export class FeedStreamService {
           return rightData;
         })
         .catch((error: unknown) => {
-          const message =
-            error instanceof RateLimitException
-              ? 'Service is busy, please try again in a moment.'
-              : (error as Error).message;
+          const message = this._getErrorMessage(error);
           console.error(
             `Error fetching right feed for "${query} graffiti":`,
             error,
@@ -104,12 +98,7 @@ export class FeedStreamService {
       subscriber.next({ type: 'complete', data: '' });
       subscriber.complete();
     } catch (error: unknown) {
-      const message =
-        error instanceof RateLimitException
-          ? 'Service is busy, please try again in a moment.'
-          : error instanceof Error
-            ? error.message
-            : 'An unknown error occurred in the SSE stream.';
+      const message = this._getErrorMessage(error);
 
       console.error('Error in SSE stream:', error);
       subscriber.next({
@@ -184,5 +173,18 @@ export class FeedStreamService {
     }
 
     return true; // Lock successfully acquired
+  }
+
+  private _getErrorMessage(
+    error: unknown,
+    defaultMessage: string = 'An unknown error occurred.',
+  ): string {
+    if (error instanceof RateLimitException) {
+      return 'Service is busy, please try again in a moment.';
+    }
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return defaultMessage;
   }
 }
