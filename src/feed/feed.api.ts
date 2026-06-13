@@ -25,7 +25,6 @@ export class FeedApi {
         {
           params: { q: query },
           headers: { 'X-API-Token': this.API_TOKEN },
-          timeout: 20000,
         },
       );
       return response;

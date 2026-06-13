@@ -23,15 +23,15 @@ lint:
 
 
 test:
-	docker compose run backend_test npm run test
+	docker compose run backend npm run test
 
 
 test.watch:
-	docker compose run backend_test npm run test:watch
+	docker compose run backend npm run test:watch
 
 
 test.coverage:
-	docker compose run backend_test npm run test:coverage
+	docker compose run backend npm run test:coverage
 
 
 install:
