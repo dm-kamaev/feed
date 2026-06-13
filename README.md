@@ -25,7 +25,7 @@ make test.watch
 ## Architectural Decisions
 
 Key architectural patterns and technologies include:
-- **Redis**: A Redis instance is used for two primary purposes:
+- **Redis**: A Redis instance is used for three primary purposes:
   1.  **Caching**: To cache the results from the external feed API, reducing latency and avoiding repeated requests.
   2.  **Distributed Locking**: To ensure that only one app process attempts to fetch data for a specific query at a time, preventing race conditions and redundant work.
   3.  **TTL**. The requirements don't require strict consistency guarantees, but Redis has TTL out of the box.
