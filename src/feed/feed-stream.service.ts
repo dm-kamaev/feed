@@ -48,55 +48,65 @@ export class FeedStreamService {
     try {
       lockAcquired = await this._acquireLockWithRetries(query, subscriber);
       if (!lockAcquired) {
-        return; // Lock not acquired or cached data served, _acquireLockWithRetries handled completion
+        return;
       }
 
-      const leftPromise = this.feedApi
-        .search(query)
-        .then((result) => {
-          const leftData = result.data.items;
-          subscriber.next({ type: 'left-ready', data: leftData });
-          return leftData;
-        })
-        .catch((error: unknown) => {
-          const message = this._getErrorMessage(error);
-
-          console.error(`Error fetching left feed for "${query}":`, error);
-          subscriber.next({
-            type: 'error',
-            data: { source: 'left', message },
-          });
-          return [] as ImageItem[];
+      const prolongTimer = setInterval(() => {
+        this.feedRepository.prolongLock(query).catch((error) => {
+          console.error(`Failed to prolong lock for "${query}":`, error);
         });
+      }, 1000);
 
-      const rightPromise = this.feedApi
-        .search(`${query} graffiti`)
-        .then((result) => {
-          const rightData = result.data.items;
-          subscriber.next({ type: 'right-ready', data: rightData });
-          return rightData;
-        })
-        .catch((error: unknown) => {
-          const message = this._getErrorMessage(error);
-          console.error(
-            `Error fetching right feed for "${query} graffiti":`,
-            error,
-          );
-          subscriber.next({
-            type: 'error',
-            data: { source: 'right', message },
+      try {
+        const leftPromise = this.feedApi
+          .search(query)
+          .then((result) => {
+            const leftData = result.data.items;
+            subscriber.next({ type: 'left-ready', data: leftData });
+            return leftData;
+          })
+          .catch((error: unknown) => {
+            const message = this._getErrorMessage(error);
+
+            console.error(`Error fetching left feed for "${query}":`, error);
+            subscriber.next({
+              type: 'error',
+              data: { source: 'left', message },
+            });
+            return [] as ImageItem[];
           });
-          return [] as ImageItem[];
-        });
 
-      const [left, right] = await Promise.all([leftPromise, rightPromise]);
+        const rightPromise = this.feedApi
+          .search(`${query} graffiti`)
+          .then((result) => {
+            const rightData = result.data.items;
+            subscriber.next({ type: 'right-ready', data: rightData });
+            return rightData;
+          })
+          .catch((error: unknown) => {
+            const message = this._getErrorMessage(error);
+            console.error(
+              `Error fetching right feed for "${query} graffiti":`,
+              error,
+            );
+            subscriber.next({
+              type: 'error',
+              data: { source: 'right', message },
+            });
+            return [] as ImageItem[];
+          });
 
-      const combinedData: CombinedFeedData = { left, right };
-      if (left.length > 0 || right.length > 0) {
-        await this.feedRepository.setFeed(query, combinedData);
+        const [left, right] = await Promise.all([leftPromise, rightPromise]);
+
+        const combinedData: CombinedFeedData = { left, right };
+        if (left.length > 0 || right.length > 0) {
+          await this.feedRepository.setFeed(query, combinedData);
+        }
+        subscriber.next({ type: 'complete', data: '' });
+        subscriber.complete();
+      } finally {
+        clearInterval(prolongTimer);
       }
-      subscriber.next({ type: 'complete', data: '' });
-      subscriber.complete();
     } catch (error: unknown) {
       const message = this._getErrorMessage(error);
 

@@ -83,6 +83,9 @@ describe('feed.controller', () => {
 
     expect(feedViewSpy).toHaveBeenCalledWith(stubCache);
     expect(feedApiSpy).not.toHaveBeenCalled();
+
+    feedViewSpy.mockRestore();
+    feedApiSpy.mockRestore();
   });
 
   // Add a test for Cache Miss scenario
@@ -121,6 +124,9 @@ describe('feed.controller', () => {
       left: FeedApiFake.defaultFeed['dog'].items,
       right: FeedApiFake.defaultFeed['dog graffiti'].items,
     });
+
+    placeholderSpy.mockRestore();
+    columnSpy.mockRestore();
   });
 
   it('GET feed/search with empty query should return an empty feed', async () => {
@@ -181,6 +187,35 @@ describe('feed.controller', () => {
     expect(sseResponse.text).toContain(`data: ${expectedRateLimitErrorHtml}`);
     // Also check that the right column still loads successfully
     expect(sseResponse.text).toContain('event: right-ready');
+  });
+
+  it(`GET feed/in_progress (Cache Hit) should return cached data immediately without calling API`, async () => {
+    const query = 'cat';
+    const stubCache: CombinedFeedData = {
+      left: FeedApiFake.defaultFeed['dog'].items,
+      right: FeedApiFake.defaultFeed['dog graffiti'].items,
+    };
+
+    const feedRepository = app.get<FeedRepository, FeedRepositoryFake>(
+      FeedRepository,
+    );
+    await feedRepository.setFeed(query, stubCache);
+
+    const feedApi = app.get(FeedApi);
+    const feedApiSpy = jest.spyOn(feedApi, 'search');
+
+    const sseResponse = await request(app.getHttpServer())
+      .get(`/feed/in_progress?query=${query}`)
+      .expect(200);
+
+    expect(sseResponse.text).toContain('event: left-ready');
+    expect(sseResponse.text).toContain('event: right-ready');
+    expect(sseResponse.text).toContain('event: complete');
+    expect(sseResponse.text).toContain('http://example.com/dog1.jpg');
+    expect(sseResponse.text).toContain('http://example.com/dog_graffiti1.jpg');
+    expect(feedApiSpy).not.toHaveBeenCalled();
+
+    feedApiSpy.mockRestore();
   });
 
   it('should handle acquireLock failure gracefully with error messages and no releaseLock', async () => {

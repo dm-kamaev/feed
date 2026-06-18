@@ -81,6 +81,14 @@ export class FeedView {
     return message; // Pass through 'complete' events
   }
 
+  cachedDataEvents(data: CombinedFeedData): FeedMessageEvent[] {
+    return [
+      { type: 'left-ready', data: data.left },
+      { type: 'right-ready', data: data.right },
+      { type: 'complete', data: '' },
+    ];
+  }
+
   emptySseMessage(): SseMessage {
     return { type: 'complete', data: '' };
   }

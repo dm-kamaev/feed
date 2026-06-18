@@ -43,6 +43,10 @@ export class FeedRepository {
     return result === 'OK';
   }
 
+  async prolongLock(query: string): Promise<void> {
+    await this.redis.expire(this.getLockKey(query), 30);
+  }
+
   async releaseLock(query: string): Promise<void> {
     await this.redis.del(this.getLockKey(query));
   }

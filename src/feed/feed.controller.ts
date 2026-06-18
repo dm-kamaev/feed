@@ -5,7 +5,7 @@ import { FeedView } from './feed.view';
 import type { Response } from 'express';
 import { from, Observable, of } from 'rxjs';
 import { mergeMap } from 'rxjs/operators';
-import { FeedMessageEvent, SseMessage } from './types';
+import { FeedMessageEvent, SseMessage, CombinedFeedData } from './types';
 
 @Controller('feed')
 export class FeedController {
@@ -40,11 +40,18 @@ export class FeedController {
     const query = (inputQuery || '').toLowerCase().trim();
 
     if (!query) {
-      // If query is empty, return a stream that closes immediately
       return of(this.feedViewService.emptySseMessage());
     }
 
-    return this.feedStreamService.act(query).pipe(
+    return from(this.feedSearchService.act(query)).pipe(
+      mergeMap(
+        (cachedData: CombinedFeedData | null): Observable<FeedMessageEvent> => {
+          if (cachedData) {
+            return from(this.feedViewService.cachedDataEvents(cachedData));
+          }
+          return this.feedStreamService.act(query);
+        },
+      ),
       mergeMap((message: FeedMessageEvent) => {
         const result = this.feedViewService.mapFeedMessageToSseMessage(message);
         return Array.isArray(result) ? from(result) : of(result);
