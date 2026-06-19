@@ -102,7 +102,7 @@ export class FeedStreamService {
         if (left.length > 0 || right.length > 0) {
           await this.feedRepository.setFeed(query, combinedData);
         }
-        subscriber.next({ type: 'complete', data: '' });
+        subscriber.next({ type: 'complete', data: 'done' });
         subscriber.complete();
       } finally {
         clearInterval(prolongTimer);
@@ -144,7 +144,7 @@ export class FeedStreamService {
         if (cachedData) {
           subscriber.next({ type: 'left-ready', data: cachedData.left });
           subscriber.next({ type: 'right-ready', data: cachedData.right });
-          subscriber.next({ type: 'complete', data: '' });
+          subscriber.next({ type: 'complete', data: 'done' });
           subscriber.complete();
           return false; // Cached data served, no need to acquire lock
         }

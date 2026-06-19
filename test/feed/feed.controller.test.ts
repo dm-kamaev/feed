@@ -104,8 +104,10 @@ describe('feed.controller', () => {
     expect(placeholderSpy).toHaveBeenCalledWith(query);
 
     const sseUrl = `/feed/in_progress?query=${query}`;
-    await request(app.getHttpServer()).get(sseUrl);
+    const sseResponse = await request(app.getHttpServer()).get(sseUrl);
 
+    expect(sseResponse.text).toContain('event: complete');
+    expect(sseResponse.text).toContain('data: done');
     expect(columnSpy).toHaveBeenCalledTimes(2);
     expect(columnSpy).toHaveBeenCalledWith(
       FeedApiFake.defaultFeed['dog'].items,
@@ -211,6 +213,7 @@ describe('feed.controller', () => {
     expect(sseResponse.text).toContain('event: left-ready');
     expect(sseResponse.text).toContain('event: right-ready');
     expect(sseResponse.text).toContain('event: complete');
+    expect(sseResponse.text).toContain('data: done');
     expect(sseResponse.text).toContain('http://example.com/dog1.jpg');
     expect(sseResponse.text).toContain('http://example.com/dog_graffiti1.jpg');
     expect(feedApiSpy).not.toHaveBeenCalled();

@@ -61,9 +61,7 @@ export class FeedView {
         type: message.type,
         data: this.renderFeedColumn(message.data),
       };
-    }
-
-    if (message.type === 'error') {
+    } else if (message.type === 'error') {
       const errorHtml = this.renderError(message.data.message);
 
       if (message.data.source === 'left') {
@@ -75,22 +73,39 @@ export class FeedView {
           { type: 'left-ready', data: errorHtml },
           { type: 'right-ready', data: errorHtml },
         ];
+      } else {
+        throw new Error(`UNHANDLED message ${JSON.stringify(message)}`);
       }
     }
+    // else if (message.type === 'complete') {
+    //   return { type: 'complete', data: '' };
+    // }
+    //  else {
+    //   throw new Error(`UNHANDLED message ${JSON.stringify(message)}`);
+    // }
 
-    return message; // Pass through 'complete' events
+    // Ensure data is non-empty so NestJS writes the `data:` SSE line
+    // (empty data causes the line to be omitted, breaking sse-close detection)
+    if (message.type === 'complete') {
+      if (typeof message.data === 'string' && message.data.length === 0) {
+        return { type: 'complete', data: 'done' };
+      }
+      return message;
+    }
+
+    return message;
   }
 
   cachedDataEvents(data: CombinedFeedData): FeedMessageEvent[] {
     return [
       { type: 'left-ready', data: data.left },
       { type: 'right-ready', data: data.right },
-      { type: 'complete', data: '' },
+      { type: 'complete', data: 'done' },
     ];
   }
 
   emptySseMessage(): SseMessage {
-    return { type: 'complete', data: '' };
+    return { type: 'complete', data: 'done' };
   }
 
   private escapeHtml(unsafe: string): string {
