@@ -7,23 +7,6 @@
     <link rel="stylesheet" href="/bulma.min.css" />
     <script src="/htmx.min.js"></script>
     <script src="/htmx-ext-sse.js"></script>
-    <script>
-      document.body.addEventListener('htmx:sseClose', function (evt) {
-        if (evt.target && evt.target.hasAttribute('sse-connect')) {
-          evt.target.removeAttribute('sse-connect')
-        }
-      })
-      document.body.addEventListener('htmx:sseError', function (evt) {
-        var elt = evt.target
-        if (elt && elt.hasAttribute('sse-connect')) {
-          var source = evt.detail && evt.detail.source
-          if (source && source.readyState !== EventSource.CLOSED) {
-            source.close()
-          }
-          elt.removeAttribute('sse-connect')
-        }
-      })
-    </script>
   </head>
   <body hx-ext="sse">
     <section class="section">
